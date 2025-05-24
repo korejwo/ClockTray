@@ -4,6 +4,12 @@
 #define ID_TRAY_EXIT 1001
 #define ID_TIMER 1
 extern "C" int _fltused = 0;
+extern "C" void* memset(void* dst, int val, size_t len)
+{
+    unsigned char* p = (unsigned char*)dst;
+    while (len--) *p++ = (unsigned char)val;
+    return dst;
+}
 
 HINSTANCE hInst;
 HWND hWnd;
@@ -198,6 +204,7 @@ void WINAPI RawEntry()
     SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
     // Ikona w trayu
+    ZeroMemory(&nid, sizeof(nid));
     nid.cbSize = sizeof(nid);
     nid.hWnd = hWnd;
     nid.uID = 1;
