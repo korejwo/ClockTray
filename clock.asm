@@ -7,13 +7,35 @@ IDT_TIMER = 1
 
 section '.text' code readable executable
 
+proc save_window_pos
+    invoke GetWindowRect, [hWnd], rect
+    mov eax, [rect.left]
+    mov [xpos], eax
+    mov eax, [rect.top]
+    mov [ypos], eax
+
+    invoke RegCreateKeyEx, HKEY_CURRENT_USER, RegPath, 0, 0, 0, KEY_WRITE, 0, regkey, 0
+    invoke RegSetValueEx, [regkey], 'X', 0, REG_DWORD, xpos, 4
+    invoke RegSetValueEx, [regkey], 'Y', 0, REG_DWORD, ypos, 4
+    invoke RegCloseKey, [regkey]
+    ret
+endp
+
+proc read_window_pos
+    invoke RegGetValue, HKEY_CURRENT_USER, RegPath, 'X', RRF_RT_REG_DWORD, 0, xpos, 4
+    invoke RegGetValue, HKEY_CURRENT_USER, RegPath, 'Y', RRF_RT_REG_DWORD, 0, ypos, 4
+    ret
+endp
+
 start:
+    call read_window_pos
     invoke  GetModuleHandle, 0
     mov     [hInstance], eax
 
     ; Rejestracja klasy okna
     mov     [wc.style], 0
-    mov     [wc.lpfnWndProc], wndproc
+    mov     eax, wndproc
+    mov     [wc.lpfnWndProc], eax
     mov     eax, [hInstance]
     mov     [wc.hInstance], eax
     mov     [wc.hCursor], 0
@@ -24,6 +46,7 @@ start:
     ; Tworzenie okna
     invoke  CreateWindowEx, WS_EX_LAYERED + WS_EX_TOOLWINDOW, class_name, 0, WS_POPUP, 100,100,200,100,0,0,[hInstance],0
     mov     [hWnd], eax
+    invoke MoveWindow, [hWnd], [xpos], [ypos], 200, 100, TRUE
 
     ; Przezroczystoœæ i wierzch
     invoke  SetLayeredWindowAttributes, [hWnd], 0FF00FFh, 0, LWA_COLORKEY
@@ -65,6 +88,7 @@ proc wndproc hwnd, msg, wparam, lparam
     ret
 
   .wm_destroy:
+    call save_window_pos
     invoke  PostQuitMessage, 0
     ret
 
@@ -128,6 +152,15 @@ proc write_two_digits
 endp
 
 HTCAPTION = 2
+RRF_RT_REG_DWORD = 0x00000010
+KEY_WRITE = 0x20006
+REG_DWORD = 4
+HKEY_CURRENT_USER = 0x80000001
+
+xpos dd 100
+ypos dd 100
+regkey dd ?
+RegPath db 'Software\ClockAsm',0
 
 section '.data' data readable writeable
 
@@ -145,9 +178,16 @@ hWnd       dd 0
 
 section '.idata' import data readable writeable
 
+  import advapi32,\
+         RegCreateKeyEx, 'RegCreateKeyExA',\
+         RegSetValueEx,  'RegSetValueExA',\
+         RegGetValue,    'RegGetValueA',\
+         RegCloseKey,    'RegCloseKey'
+
   library kernel32, 'KERNEL32.DLL',\
-          user32,   'USER32.DLL',\
-          gdi32,    'GDI32.DLL'
+        user32,   'USER32.DLL',\
+        gdi32,    'GDI32.DLL',\
+        advapi32, 'ADVAPI32.DLL'
 
   import kernel32,\
          GetModuleHandle, 'GetModuleHandleA',\
@@ -167,6 +207,8 @@ section '.idata' import data readable writeable
          BeginPaint,      'BeginPaint',\
          EndPaint,        'EndPaint',\
          GetClientRect,   'GetClientRect',\
+         GetWindowRect,   'GetWindowRect',\
+         MoveWindow,      'MoveWindow',\
          DrawTextW,       'DrawTextW',\
          SetLayeredWindowAttributes, 'SetLayeredWindowAttributes',\
          SetWindowPos,    'SetWindowPos',\
