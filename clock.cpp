@@ -1,5 +1,4 @@
 #include <windows.h>
-#include <time.h>
 
 #define WM_TRAYICON (WM_USER + 1)
 #define ID_TRAY_EXIT 1001
@@ -9,6 +8,7 @@ HINSTANCE hInst;
 HWND hWnd;
 NOTIFYICONDATA nid;
 HMENU hMenu;
+HFONT hFont = NULL;
 
 COLORREF currentTextColor = RGB(0, 0, 0);
 COLORREF targetTextColor = RGB(0, 0, 0);
@@ -46,17 +46,47 @@ COLORREF InterpolateColor(COLORREF from, COLORREF to, double factor)
     return RGB(r, g, b);
 }
 
-void GetCurrentTimeStr(wchar_t* buffer, int size)
+void GetCurrentTimeStr(wchar_t* buffer)
 {
-    time_t now = time(NULL);
-    struct tm localTime;
-    localtime_s(&localTime, &now);
-    wcsftime(buffer, size, L"%H:%M:%S", &localTime);
+    SYSTEMTIME t;
+    GetLocalTime(&t);
+    wsprintfW(buffer, L"%02d:%02d:%02d", t.wHour, t.wMinute, t.wSecond);
 }
 
 void UpdateTime()
 {
     RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE);
+}
+
+void SaveWindowPosition(int x, int y)
+{
+    HKEY hKey;
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\ClockTrayApp", 0, NULL, 0, KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS)
+    {
+        RegSetValueExW(hKey, L"PosX", 0, REG_DWORD, (const BYTE*)&x, sizeof(DWORD));
+        RegSetValueExW(hKey, L"PosY", 0, REG_DWORD, (const BYTE*)&y, sizeof(DWORD));
+        RegCloseKey(hKey);
+    }
+}
+
+BOOL LoadWindowPosition(int* x, int* y)
+{
+    HKEY hKey;
+    DWORD dataSize = sizeof(DWORD);
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\ClockTrayApp", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+    {
+        DWORD valX, valY;
+        if (RegQueryValueExW(hKey, L"PosX", NULL, NULL, (LPBYTE)&valX, &dataSize) == ERROR_SUCCESS &&
+            RegQueryValueExW(hKey, L"PosY", NULL, NULL, (LPBYTE)&valY, &dataSize) == ERROR_SUCCESS)
+        {
+            *x = (int)valX;
+            *y = (int)valY;
+            RegCloseKey(hKey);
+            return TRUE;
+        }
+        RegCloseKey(hKey);
+    }
+    return FALSE;
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -65,6 +95,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
         SetTimer(hwnd, ID_TIMER, 100, NULL); // co 100 ms dla p³ynnej zmiany koloru
+        hFont = CreateFontW(48, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+            VARIABLE_PITCH, L"Segoe UI");
         break;
 
     case WM_TIMER:
@@ -96,19 +130,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, currentTextColor);
 
-        HFONT hFont = CreateFontW(48, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
-            CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-            VARIABLE_PITCH, L"Segoe UI");
-
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
         wchar_t timeStr[16];
-        GetCurrentTimeStr(timeStr, 16);
+        GetCurrentTimeStr(timeStr);
         DrawTextW(hdc, timeStr, -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
         SelectObject(hdc, hOldFont);
-        DeleteObject(hFont);
         EndPaint(hwnd, &ps);
         break;
     }
@@ -132,8 +160,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_DESTROY:
+        DeleteObject(hFont);
         KillTimer(hwnd, ID_TIMER);
+        RECT rect;
+        GetWindowRect(hwnd, &rect);
+        SaveWindowPosition(rect.left, rect.top);
         PostQuitMessage(0);
+        break;
+
+    case WM_LBUTTONDOWN:
+        ReleaseCapture();
+        SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
         break;
     }
 
@@ -151,10 +188,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     RegisterClassW(&wc);
 
-    int width = 200, height = 100;
-    hWnd = CreateWindowExW(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW,
+    int x = 100, y = 100, width = 200, height = 100;
+    LoadWindowPosition(&x, &y);
+    hWnd = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOOLWINDOW,
         wc.lpszClassName, L"Clock", WS_POPUP,
-        100, 100, width, height, NULL, NULL, hInstance, NULL);
+        x, y, width, height, NULL, NULL, hInstance, NULL);
 
     SetLayeredWindowAttributes(hWnd, RGB(255, 0, 255), 0, LWA_COLORKEY);
     ShowWindow(hWnd, SW_SHOW);
