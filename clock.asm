@@ -3,6 +3,8 @@ entry start
 
 include 'win32a.inc'
 
+IDT_TIMER = 1
+
 section '.text' code readable executable
 
 start:
@@ -29,6 +31,9 @@ start:
     invoke  UpdateWindow, [hWnd]
     invoke  SetWindowPos, [hWnd], -1, 0, 0, 0, 0, SWP_NOMOVE + SWP_NOSIZE + SWP_NOACTIVATE
 
+    ; Timer 1000 ms
+    invoke  SetTimer, [hWnd], IDT_TIMER, 1000, 0
+
 msg_loop:
     invoke  GetMessage, msg, 0, 0, 0
     or      eax, eax
@@ -38,6 +43,7 @@ msg_loop:
     jmp     msg_loop
 
 end_loop:
+    invoke  KillTimer, [hWnd], IDT_TIMER
     invoke  ExitProcess, 0
 
 ; ----------------------------------------
@@ -48,6 +54,9 @@ proc wndproc hwnd, msg, wparam, lparam
 
     cmp     [msg], WM_PAINT
     je      .wm_paint
+
+    cmp     [msg], WM_TIMER
+    je      .wm_timer
 
     invoke  DefWindowProc, [hwnd], [msg], [wparam], [lparam]
     ret
@@ -92,6 +101,10 @@ proc wndproc hwnd, msg, wparam, lparam
     invoke  SetTextColor, ebx, 000000h
     invoke  DrawTextW, ebx, time_buf, -1, rect, DT_CENTER + DT_VCENTER + DT_SINGLELINE
     invoke  EndPaint, [hwnd], ps
+    ret
+
+  .wm_timer:
+    invoke InvalidateRect, [hwnd], 0, TRUE
     ret
 endp
 
@@ -147,7 +160,10 @@ section '.idata' import data readable writeable
          DrawTextW,       'DrawTextW',\
          SetLayeredWindowAttributes, 'SetLayeredWindowAttributes',\
          SetWindowPos,    'SetWindowPos',\
-         FillRect,        'FillRect'
+         FillRect,        'FillRect',\
+         InvalidateRect,  'InvalidateRect',\
+         SetTimer,        'SetTimer',\
+         KillTimer,       'KillTimer'
 
   import gdi32,\
          CreateSolidBrush,'CreateSolidBrush',\
