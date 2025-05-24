@@ -47,7 +47,10 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EntryPointSymbol>RawEntry</EntryPointSymbol>
       <GenerateManifest>false</GenerateManifest>
+      <FixedBaseAddress>true</FixedBaseAddress>
+      <DynamicBase>false</DynamicBase>
       <AdditionalOptions>/NODEFAULTLIB /OPT:REF /OPT:ICF %(AdditionalOptions)</AdditionalOptions>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
