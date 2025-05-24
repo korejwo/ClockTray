@@ -11,7 +11,6 @@ extern "C" void* memset(void* dst, int val, size_t len)
     return dst;
 }
 
-HINSTANCE hInst;
 HWND hWnd;
 NOTIFYICONDATA nid;
 HMENU hMenu;
@@ -210,7 +209,7 @@ void WINAPI RawEntry()
     nid.uID = 1;
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
-    nid.hIcon = LoadIconW(hInst, MAKEINTRESOURCEW(101));
+    nid.hIcon = LoadIconW(wc.hInstance, MAKEINTRESOURCEW(101));
     lstrcpyW(nid.szTip, L"Zegar");
     Shell_NotifyIconW(NIM_ADD, &nid);
 
