@@ -3,6 +3,7 @@
 #define WM_TRAYICON (WM_USER + 1)
 #define ID_TRAY_EXIT 1001
 #define ID_TIMER 1
+extern "C" int _fltused = 0;
 
 HINSTANCE hInst;
 HWND hWnd;
@@ -33,7 +34,7 @@ COLORREF ChooseTextColorBasedOnBackground(COLORREF bg)
     int r = GetRValue(bg);
     int g = GetGValue(bg);
     int b = GetBValue(bg);
-    double luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    int luma = (299 * r + 587 * g + 114 * b) / 1000;
 
     return (luma > 128) ? RGB(0, 0, 0) : RGB(255, 255, 255);
 }
@@ -177,13 +178,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+void WINAPI RawEntry()
 {
-    hInst = hInstance;
-
     WNDCLASSW wc = { 0 };
     wc.lpfnWndProc = WndProc;
-    wc.hInstance = hInstance;
+    wc.hInstance = GetModuleHandle(NULL);
     wc.lpszClassName = L"ClockTrayApp";
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     RegisterClassW(&wc);
@@ -192,14 +191,13 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     LoadWindowPosition(&x, &y);
     hWnd = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOOLWINDOW,
         wc.lpszClassName, L"Clock", WS_POPUP,
-        x, y, width, height, NULL, NULL, hInstance, NULL);
+        x, y, width, height, NULL, NULL, wc.hInstance, NULL);
 
     SetLayeredWindowAttributes(hWnd, RGB(255, 0, 255), 0, LWA_COLORKEY);
     ShowWindow(hWnd, SW_SHOW);
     SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
     // Ikona w trayu
-    ZeroMemory(&nid, sizeof(nid));
     nid.cbSize = sizeof(nid);
     nid.hWnd = hWnd;
     nid.uID = 1;
@@ -221,5 +219,5 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     }
 
     DestroyMenu(hMenu);
-    return 0;
+    ExitProcess(0);
 }

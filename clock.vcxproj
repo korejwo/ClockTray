@@ -42,7 +42,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-	  <AdditionalOptions>/OPT:REF /OPT:ICF %(AdditionalOptions)</AdditionalOptions>
+	  <AdditionalOptions>/ENTRY:RawEntry /NODEFAULTLIB /OPT:REF /OPT:ICF %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
