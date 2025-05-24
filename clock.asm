@@ -58,6 +58,9 @@ proc wndproc hwnd, msg, wparam, lparam
     cmp     [msg], WM_TIMER
     je      .wm_timer
 
+    cmp     [msg], WM_LBUTTONDOWN
+    je      .wm_drag
+
     invoke  DefWindowProc, [hwnd], [msg], [wparam], [lparam]
     ret
 
@@ -106,6 +109,11 @@ proc wndproc hwnd, msg, wparam, lparam
   .wm_timer:
     invoke InvalidateRect, [hwnd], 0, TRUE
     ret
+
+  .wm_drag:
+    invoke ReleaseCapture
+    invoke SendMessage, [hwnd], WM_NCLBUTTONDOWN, HTCAPTION, 0
+    ret
 endp
 
 proc write_two_digits
@@ -118,6 +126,8 @@ proc write_two_digits
     mov [edi+2], dx     ; drugi znak UTF-16
     ret
 endp
+
+HTCAPTION = 2
 
 section '.data' data readable writeable
 
@@ -163,7 +173,9 @@ section '.idata' import data readable writeable
          FillRect,        'FillRect',\
          InvalidateRect,  'InvalidateRect',\
          SetTimer,        'SetTimer',\
-         KillTimer,       'KillTimer'
+         KillTimer,       'KillTimer',\
+         ReleaseCapture,  'ReleaseCapture',\
+         SendMessage,     'SendMessageA'
 
   import gdi32,\
          CreateSolidBrush,'CreateSolidBrush',\
